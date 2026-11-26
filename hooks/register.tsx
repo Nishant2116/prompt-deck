@@ -327,16 +327,6 @@ export const register: Register = (on, options) => {
         description: 'Open Prompt Deck; /prompts off turns it off, /prompts on back on',
       })
 
-      // While the mod is being built in a session's mods folder only: a tool
-      // that reloads the latest code, so a change can be seen without a new turn.
-      if ($.plugin.root.includes('/dev-mods/')) {
-        await $.tool.register({
-          name: 'reload',
-          description: 'Reload Prompt Deck from its files (development only).',
-          inputSchema: { type: 'object', properties: {} },
-          isDeferred: false,
-        })
-      }
       if (!isOff && mod.openOnStart) {
         void $.ui.open({ id: PANE, title: TITLE, columns: 60 })
       }
@@ -363,7 +353,6 @@ export const register: Register = (on, options) => {
     return { text: 'Prompt Deck is on.' }
   })
 
-  on('tool.run', { tool: 'mcp__prompt-deck__reload' as never }, async () => ({ result: 'Reloaded.' }))
 
   on('turn.start', ($, e, next) => {
     if (e.agentId === undefined) {
