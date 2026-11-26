@@ -1,19 +1,30 @@
-<img src=".claude-plugin/icon.png" alt="Prompt Deck icon" width="96">
+<p align="center">
+  <img src="docs/banner.svg" alt="Prompt Deck: your saved prompts, one tap from the chat" width="100%">
+</p>
 
-# Prompt Deck
+<p align="center">
+  <img alt="Version 0.7.0" src="https://img.shields.io/badge/version-0.7.0-ff8a4c?style=flat-square&labelColor=2b1a14">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e0507a?style=flat-square&labelColor=2b1a14"></a>
+  <img alt="A Claude Code plugin" src="https://img.shields.io/badge/Claude_Code-plugin-ffd25e?style=flat-square&labelColor=2b1a14">
+</p>
 
-A bento-style widget beside the chat in the Claude desktop app: your saved prompts as tiles you tap to send, a game card for while Claude works, and thirteen moving themes that restyle the whole app.
+<p align="center">
+  <b>A pane beside the chat in the Claude desktop app</b> that holds the prompts you keep retyping.<br>
+  Tap one and it is sent. Play a round while Claude works. Restyle the whole app with a moving theme.
+</p>
 
-- **Tap a tile to send.** Each saved prompt is a compact chip with its title and the start of its text. Tapping it sends the prompt to the session you are looking at, as if you typed it and pressed Enter. While Claude is busy, it waits and sends when the turn ends. The tile shows **Sent ✓** for a moment.
-- **Add, edit, delete:** **New prompt** in the header tile or the dashed tile; **•••** on a tile to edit or delete it.
-- **Plain file you can edit by hand:** `~/.claude/prompt-deck/prompts.md`. The widget picks up changes within a few seconds.
-- **Game card:** tic-tac-toe against Claude (it plays well but slips now and then) on one face and a 4×4 mini sudoku on the other, with squares as big as the pane allows. The round **⇄** button in its header switches games with a wave of light across the new board; every move glints, and Claude's reply lands a beat after yours.
-- **Moving themes:** Claude, Marigold, Peach Haze, Glacier, Sage, Pixel Quest (drifting clouds, bobbing coins), Mainframe (glyph rain), Lo-fi Dusk (falling petals), Deep Space (drifting stars, a shooting star), Aurora (swaying northern lights), Lava Lamp (molten blobs), Ocean Tide (rolling waves) and Neon City (sky traffic, flickering windows). Each sets the app's colors, message bubbles and a moving background the panels frost over, and the widget's header plays the same scene. Motion is slow and stops when your system asks for reduced motion. Your pick carries over to new sessions. The theme pill in the header steps to the next theme.
-- `/prompts` reopens the pane if you close it.
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/features-dark.svg">
+  <img src="docs/features-light.svg" alt="Five features: tap to send, a plain Markdown file, a game card, an off switch and 13 moving themes" width="100%">
+</picture>
 
 ## Install
 
-At the prompt of a Claude Code terminal session:
+**In the Claude desktop app:** click **+** next to the prompt box, then **Plugins**, **Add marketplace**, enter `Nishant2116/prompt-deck`, and **Add plugin**.
+
+**At the prompt of a terminal session:**
 
 ```
 /plugin install prompt-deck --marketplace Nishant2116/prompt-deck
@@ -21,33 +32,25 @@ At the prompt of a Claude Code terminal session:
 
 Answer `y` to add the marketplace, then press Enter for the user scope.
 
-From a shell:
+**From a shell:**
 
 ```bash
 claude plugin install prompt-deck --marketplace Nishant2116/prompt-deck
 ```
 
-In the desktop app, where `/plugin` does not run: click **+** next to the prompt box, then **Plugins**, **Add marketplace** with `Nishant2116/prompt-deck`, then **Add plugin**.
+The pane opens in every new session. In a session that was already open, run `/reload-plugins`.
 
-The pane opens in each new session. In a session that was already open, run `/reload-plugins`.
+## Themes that move
 
-## Turning it off
+<p align="center">
+  <img src="docs/themes.svg" alt="Aurora, Lava Lamp and Ocean Tide in motion, then all thirteen themes" width="100%">
+</p>
 
-- **For now:** press **Off** in the pane's header, or type `/prompts off`. The pane closes, Claude's own look comes back, and new sessions stay quiet. Type `/prompts on` (or just `/prompts`) to bring it back.
-- **Settings:** Prompt Deck has two switches in Claude's plugin settings (the `/config` menu in a terminal session): **Open Prompt Deck when a session starts** and **Let Prompt Deck theme the app**.
-- **The whole plugin:** turn it off in Claude's Plugins screen, or from a shell:
+Each theme sets the app's colors for light and dark mode, its message bubbles, and a slow scene behind the chat that the panels frost over. The pane's header plays the same scene. Pick one in the gallery at the bottom of the pane, or step through them with the theme pill in the header. Motion stops when your system asks for reduced motion, and your pick carries over to new sessions.
 
-  ```bash
-  claude plugin disable prompt-deck@prompt-deck
-  ```
-
-  `claude plugin enable prompt-deck@prompt-deck` turns it back on, and `claude plugin uninstall prompt-deck@prompt-deck` removes it.
-
-## The prompts file
+## Your prompts, in a plain file
 
 ```markdown
-# Saved prompts
-
 ## Continue
 
 Continue with the next step.
@@ -57,11 +60,51 @@ Continue with the next step.
 Run the tests and fix any failures.
 ```
 
-Each `## Title` line starts a prompt. Everything under it, up to the next `## ` line, is the text that gets sent, and it can span several lines. Text above the first heading is kept as notes. A `## ` line inside a code fence stays part of the prompt. Delete the file and the pane writes the five starter prompts again.
+They live in `~/.claude/prompt-deck/prompts.md`. Each `## Title` line starts a prompt, and everything under it, up to the next `## ` line, is the text that gets sent, across as many lines as you like. Add, edit and delete from the pane (**+ New prompt**, or **•••** on a chip) or in any editor: the pane picks up changes within a few seconds. Text above the first heading is kept as notes, a `## ` inside a code fence stays part of its prompt, and deleting the file brings back the five starters.
 
-## Where it works
+While Claude is busy, a tapped prompt waits and sends when the turn ends.
+
+## Play while Claude works
+
+One card, two games. **Tic-tac-toe** against Claude, which plays well but slips now and then, and a **4×4 sudoku** with a number pad and clashes in red. The round **⇄** button swaps them with a wave of light across the new board; every move glints, and Claude's reply lands a beat after yours.
+
+## Turning it off
+
+- **For now:** press **Off** in the pane's header, or type `/prompts off`. The pane closes, Claude's own look comes back, and new sessions stay quiet. Type `/prompts on` (or just `/prompts`) to bring it back.
+- **Settings:** two switches in Claude's plugin settings (the `/config` menu in a terminal session): **Open Prompt Deck when a session starts** and **Let Prompt Deck theme the app**.
+- **The whole plugin:** turn it off in Claude's Plugins screen, or from a shell:
+
+  ```bash
+  claude plugin disable prompt-deck@prompt-deck
+  ```
+
+  `claude plugin enable prompt-deck@prompt-deck` turns it back on, and `claude plugin uninstall prompt-deck@prompt-deck` removes it.
+
+<details>
+<summary><b>Where it works</b></summary>
+
+<br>
 
 The widget and themes draw in the Claude desktop app's Code tab. A terminal session's fullscreen layout and the phone apps show the same prompts as plain buttons, without the games or themes.
+
+</details>
+
+<details>
+<summary><b>Develop</b></summary>
+
+<br>
+
+```bash
+git clone https://github.com/Nishant2116/prompt-deck.git
+cd prompt-deck
+claude plugin validate .
+claude plugin test .
+claude --plugin-dir .
+```
+
+The pane is a set of Client regions sized in text lines (`hooks/tile.tsx`, `game.tsx`, `gallery.tsx`, `pills.tsx`) over SVG art pinned to each tile (`hooks/art.ts`, `scenes.ts`). Prompts are sent with `$.prompt.submit`, falling back to `$.prompt.fill`.
+
+</details>
 
 ## License
 
