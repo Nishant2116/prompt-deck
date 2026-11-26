@@ -1,0 +1,14 @@
+{
+  "name": "prompt-deck",
+  "owner": {
+    "name": "Nishant2116"
+  },
+  "plugins": [
+    {
+      "name": "prompt-deck",
+      "source": "./",
+      "description": "A bento widget beside the chat: saved prompts you tap to send, a flip card with tic-tac-toe and mini sudoku, and thirteen moving themes for the Claude app."
+    }
+  ],
+  "description": "Prompt Deck for the Claude desktop app"
+}
