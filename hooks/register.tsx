@@ -42,6 +42,9 @@ const mod: {
   draft: { title?: string; text?: string }
   poller: Timer | undefined
   sentTimer: Timer | undefined
+  /** The settings: open the pane at start, and let picks theme the app. */
+  openOnStart: boolean
+  useThemes: boolean
 } = {
   filePath: '',
   shownPath: '~/.claude/prompt-deck/prompts.md',
@@ -51,6 +54,8 @@ const mod: {
   draft: {},
   poller: undefined,
   sentTimer: undefined,
+  openOnStart: true,
+  useThemes: true,
 }
 
 async function writeFile($: Engine, list: readonly SavedPrompt[]) {
@@ -59,6 +64,9 @@ async function writeFile($: Engine, list: readonly SavedPrompt[]) {
 }
 
 async function applyLook($: Engine, id: LookId) {
+  if (!mod.useThemes) {
+    return
+  }
   const theme = themeOf(id)
 
   if (theme === undefined) {
@@ -95,7 +103,10 @@ async function poll($: Engine) {
     await update($, prompts, () => parsed.prompts)
   }
 
-  // A look picked in another session reaches this one too.
+  // A look picked in another session reaches this one too, unless Prompt Deck is off.
+  if ((await $.store.get('off')) === true) {
+    return
+  }
   const stored = await $.store.get('look')
   const current = await read($, look)
 
@@ -199,9 +210,30 @@ async function cancel($: Engine) {
 }
 
 async function pickLook($: Engine, id: LookId) {
+  if (!mod.useThemes) {
+    $.ui.toast("Themes are switched off in Prompt Deck's settings.")
+  }
   await update($, look, () => id)
   await $.store.set('look', id)
   await applyLook($, id)
+}
+
+/** Turns Prompt Deck off: the pane closes, Claude's own look returns, and new sessions stay quiet. */
+async function turnOff($: Engine) {
+  await $.store.set('off', true)
+  await $.ui.close({ id: PANE }).catch(() => undefined)
+
+  if (mod.useThemes && (await read($, look)) !== 'default') {
+    await $.theme.clear()
+  }
+  $.ui.toast('Prompt Deck is off. Type /prompts on to bring it back.')
+}
+
+/** Turns Prompt Deck back on: the pane opens and the picked look returns. */
+async function turnOn($: Engine) {
+  await $.store.set('off', false)
+  await $.ui.open({ id: PANE, title: TITLE, columns: 60 })
+  await applyLook($, await read($, look))
 }
 
 /** What a press on a tile does, by the id the tile reported. */
@@ -229,6 +261,8 @@ async function act($: Engine, id: string) {
     await update($, game, g => ({ ...g, kind: 'sudoku' as const, sudoku: placeDigit(g.sudoku, n) }))
   } else if (kind === 'look' && isLookId(arg)) {
     await pickLook($, arg)
+  } else if (kind === 'off') {
+    await turnOff($)
   } else if (kind === 'theme') {
     // The header's theme pill: on to the next theme in the gallery's order.
     const current = await read($, look)
@@ -263,7 +297,10 @@ const preview = (text: string) => {
   return flat.length > 160 ? `${flat.slice(0, 159).trimEnd()}…` : flat
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  mod.openOnStart = options.openOnStart !== false
+  mod.useThemes = options.themes !== false
+
   on('session.start', async ($, e, next) => {
     try {
       const home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE')) ?? ''
@@ -277,14 +314,18 @@ export const register: Register = on => {
       mod.lastMtime = -1
       await poll($)
 
+      const isOff = (await $.store.get('off')) === true
       const stored = await $.store.get('look')
       const id = isLookId(stored) ? stored : 'default'
       await update($, look, () => id)
 
-      if (id !== 'default') {
+      if (id !== 'default' && !isOff) {
         await applyLook($, id)
       }
-      await $.command.register({ name: 'prompts', description: 'Open the Prompt Deck pane' })
+      await $.command.register({
+        name: 'prompts',
+        description: 'Open Prompt Deck; /prompts off turns it off, /prompts on back on',
+      })
 
       // While the mod is being built in a session's mods folder only: a tool
       // that reloads the latest code, so a change can be seen without a new turn.
@@ -296,7 +337,9 @@ export const register: Register = on => {
           isDeferred: false,
         })
       }
-      void $.ui.open({ id: PANE, title: TITLE, columns: 60 })
+      if (!isOff && mod.openOnStart) {
+        void $.ui.open({ id: PANE, title: TITLE, columns: 60 })
+      }
 
       mod.poller?.cancel()
       mod.poller = $.clock.every(POLL_MS, () => {
@@ -309,10 +352,15 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'prompts' }, async $ => {
-    await $.ui.open({ id: PANE, title: TITLE, columns: 60 })
+  on('command.run', { command: 'prompts' }, async ($, e) => {
+    if (e.args.trim().toLowerCase() === 'off') {
+      await turnOff($)
 
-    return { text: 'Prompt Deck opened.' }
+      return { text: 'Prompt Deck is off. Type /prompts on to bring it back.' }
+    }
+    await turnOn($)
+
+    return { text: 'Prompt Deck is on.' }
   })
 
   on('tool.run', { tool: 'mcp__prompt-deck__reload' as never }, async () => ({ result: 'Reloaded.' }))
@@ -492,12 +540,13 @@ export const register: Register = on => {
                 pills: [
                   { id: 'new', label: '+ New prompt', isPrimary: true },
                   { id: 'theme', label: `${lk.label} ›`, isPrimary: false },
+                  { id: 'off', label: 'Off', isPrimary: false },
                 ],
                 accent,
                 onAccent,
                 ink: heroInk === 'text' ? accent : heroInk,
               }}
-              width={Math.min(C - 6, 40)}
+              width={Math.min(C - 6, 46)}
               height={2}
             />
           </Box>
@@ -652,7 +701,10 @@ export const register: Register = on => {
           <Text bold color={accent}>
             {TITLE}
           </Text>
-          <Button key="new" label="+ New" hotkey="n" onPress={() => startEdit($, -1)} />
+          <Box flexDirection="row" gap={1}>
+            <Button key="new" label="+ New" hotkey="n" onPress={() => startEdit($, -1)} />
+            <Button key="off" plain dimColor label="Off" onPress={() => turnOff($)} />
+          </Box>
         </Box>
         {list.map((prompt, i) => (
           <Box key={`row-${i}`} flexDirection="row" gap={1}>

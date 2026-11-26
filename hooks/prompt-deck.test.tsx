@@ -292,6 +292,67 @@ test('the header pills: New prompt opens the editor, the theme pill moves to the
   expect(looks[0]).toContain('"scene":"marigold"')
 })
 
+test('Off closes the pane, restores the look and stays off; /prompts on brings it back', async ($, on) => {
+  const closed: string[] = []
+  const opened: string[] = []
+  const stored: string[] = []
+  on('ui.close', (_, e) => {
+    closed.push(JSON.stringify(e))
+
+    return { value: undefined }
+  })
+  on('ui.open', (_, e) => {
+    opened.push(JSON.stringify(e))
+
+    return { value: { isPlaced: true } }
+  })
+  on('store.set', (_, e) => {
+    stored.push(JSON.stringify(e))
+
+    return { value: undefined }
+  })
+  on('store.get', () => ({ value: undefined }))
+  on('theme.set', () => ({ value: { isDrawn: true, requestId: 'r1' } }))
+  on('theme.clear', () => ({ value: { isDrawn: true, requestId: 'r2' } }))
+  on('ui.toast', () => ({ value: undefined }))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.post({ press: 'off' }, { in: 'hero-pills' })
+  await settle()
+  await ui.unmount()
+
+  expect(closed.join(' ')).toContain('prompt-deck')
+  expect(stored.join(' ')).toContain('"off"')
+  expect(stored.join(' ')).toContain('true')
+
+  await $.command.run({ command: 'prompts', args: 'on' } as never)
+  expect(opened.join(' ')).toContain('prompt-deck')
+  expect(stored.at(-1)).toContain('false')
+})
+
+test('with "open at start" switched off, a session starts with the pane closed', { options: { openOnStart: false } }, async ($, on) => {
+  const opened: string[] = []
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.stat', () => ({ value: { kind: 'file', size: 10, mtimeMs: 7, isLink: false } }))
+  on('fs.read', () => ({ value: serializePrompts(STARTER_INTRO, SAVED) }))
+  on('store.get', () => ({ value: undefined }))
+  on('command.register', () => ({ value: { command: 'prompts' } }))
+  on('tool.register', () => ({ value: { tool: 'mcp__prompt-deck__reload' } }))
+  on('ui.open', (_, e) => {
+    opened.push(JSON.stringify(e))
+
+    return { value: { isPlaced: true } }
+  })
+  on('clock.every', () => ({ value: undefined }))
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await settle()
+
+  expect(opened).toEqual([])
+})
+
 test('without regions, the prompts are plain buttons that send', async ($, on) => {
   const sent: string[] = []
   on('state.get', ($, e, next) => (e.key === 'prompts' ? SEEDED : next(e)))

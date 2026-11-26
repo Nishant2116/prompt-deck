@@ -31,6 +31,18 @@ In the desktop app, where `/plugin` does not run: click **+** next to the prompt
 
 The pane opens in each new session. In a session that was already open, run `/reload-plugins`.
 
+## Turning it off
+
+- **For now:** press **Off** in the pane's header, or type `/prompts off`. The pane closes, Claude's own look comes back, and new sessions stay quiet. Type `/prompts on` (or just `/prompts`) to bring it back.
+- **Settings:** Prompt Deck has two switches in Claude's plugin settings (the `/config` menu in a terminal session): **Open Prompt Deck when a session starts** and **Let Prompt Deck theme the app**.
+- **The whole plugin:** turn it off in Claude's Plugins screen, or from a shell:
+
+  ```bash
+  claude plugin disable prompt-deck@prompt-deck
+  ```
+
+  `claude plugin enable prompt-deck@prompt-deck` turns it back on, and `claude plugin uninstall prompt-deck@prompt-deck` removes it.
+
 ## The prompts file
 
 ```markdown
