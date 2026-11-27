@@ -13,6 +13,14 @@
   Tap one and it is sent. Play a round while Claude works. Restyle the whole app with a moving theme.
 </p>
 
+<p align="center">
+  <a href="https://github.com/Nishant2116/prompt-deck/releases/download/v0.7.2/prompt-deck-promo.mp4">
+    <img src="docs/preview.webp" alt="The Claude desktop app opens with Prompt Deck docked beside the chat, and tapping Run the tests sends it" width="100%">
+  </a>
+  <br>
+  <sub><a href="https://github.com/Nishant2116/prompt-deck/releases/download/v0.7.2/prompt-deck-promo.mp4">Watch the 34-second video</a> (MP4, with sound) · <a href="https://github.com/Nishant2116/prompt-deck/releases/download/v0.7.2/prompt-deck-promo-reel.mp4">vertical cut for phones</a></sub>
+</p>
+
 <br>
 
 <picture>
