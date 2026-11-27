@@ -1,7 +1,8 @@
 import type { GameState, Mark, Sudoku, Ttt } from '../types'
 
 // Two small games for while Claude works: tic-tac-toe against a bot that
-// plays well but slips now and then, and a 4×4 sudoku (2×2 boxes, digits 1-4).
+// plays perfectly (the best you can do is a draw), and a 4×4 sudoku
+// (2×2 boxes, digits 1-4).
 
 type Rand = () => number
 
@@ -31,48 +32,74 @@ export const judge = (board: readonly Mark[]): { winner: Ttt['winner']; line: nu
 
 const pick = <T>(list: readonly T[], rand: Rand): T | undefined => list[Math.floor(rand() * list.length)]
 
-const finishing = (board: readonly Mark[], mark: Mark): number | undefined => {
-  for (const [a, b, c] of LINES) {
-    const cells = [a, b, c]
-    const mine = cells.filter(i => board[i] === mark).length
-    const empty = cells.filter(i => board[i] === '')
+/**
+ * How good a position is for Claude (O) with `turn` to move, looking to the
+ * end of the game: a win scores more the sooner it comes, a loss less the
+ * later it comes, a draw zero. Positions are remembered, so the whole tree
+ * is searched at most once per session.
+ */
+const known = new Map<string, number>()
 
-    if (mine === 2 && empty.length === 1) {
-      return empty[0]
-    }
+const outcome = (board: Mark[], turn: 'X' | 'O'): number => {
+  const key = `${turn}${board.join(',')}`
+  const seen = known.get(key)
+
+  if (seen !== undefined) {
+    return seen
   }
+  const { winner } = judge(board)
+  const left = board.filter(cell => cell === '').length
+  let value: number
 
-  return undefined
+  if (winner === 'O') {
+    value = 1 + left
+  } else if (winner === 'X') {
+    value = -1 - left
+  } else if (winner === 'draw') {
+    value = 0
+  } else {
+    const values = board.flatMap((cell, i) => {
+      if (cell !== '') {
+        return []
+      }
+      board[i] = turn
+      const v = outcome(board, turn === 'O' ? 'X' : 'O')
+      board[i] = ''
+
+      return [v]
+    })
+    value = turn === 'O' ? Math.max(...values) : Math.min(...values)
+  }
+  known.set(key, value)
+
+  return value
 }
 
-/** The bot's cell: win, block, centre, corner, side; one move in five is a slip. */
+/**
+ * Claude's cell: the move with the best outcome at perfect play from both
+ * sides, so it always takes a win, always blocks, and never loses. Among
+ * equally good moves it picks one at random, so games still vary.
+ */
 export const botMove = (board: readonly Mark[], rand: Rand = Math.random): number | undefined => {
   const empty = board.flatMap((cell, i) => (cell === '' ? [i] : []))
 
   if (empty.length === 0) {
     return undefined
   }
+  const work = [...board]
+  const scoredMoves = empty.map(i => {
+    work[i] = 'O'
+    const value = outcome(work, 'X')
+    work[i] = ''
 
-  if (rand() < 0.2) {
-    return pick(empty, rand)
-  }
-  const win = finishing(board, 'O')
+    return { i, value }
+  })
+  const best = Math.max(...scoredMoves.map(m => m.value))
 
-  if (win !== undefined) {
-    return win
-  }
-  const block = finishing(board, 'X')
-
-  if (block !== undefined) {
-    return block
-  }
-
-  if (board[4] === '') {
-    return 4
-  }
-  const corners = [0, 2, 6, 8].filter(i => board[i] === '')
-
-  return pick(corners.length > 0 ? corners : empty, rand)
+  return pick(
+    scoredMoves.filter(m => m.value === best).map(m => m.i),
+    rand,
+  )
 }
 
 const scored = (game: Ttt): Ttt => {

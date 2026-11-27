@@ -3,9 +3,9 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.7.0" src="https://img.shields.io/badge/version-0.7.0-ff8a4c?style=flat-square&labelColor=2b1a14">
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e0507a?style=flat-square&labelColor=2b1a14"></a>
-  <img alt="A Claude Code plugin" src="https://img.shields.io/badge/Claude_Code-plugin-ffd25e?style=flat-square&labelColor=2b1a14">
+  <img alt="Version 0.7.1" src="docs/badge-version.svg" height="28">&nbsp;
+  <a href="LICENSE"><img alt="MIT license" src="docs/badge-license.svg" height="28"></a>&nbsp;
+  <img alt="A Claude Code plugin" src="docs/badge-plugin.svg" height="28">
 </p>
 
 <p align="center">
@@ -43,7 +43,7 @@ The pane opens in every new session. In a session that was already open, run `/r
 ## Themes that move
 
 <p align="center">
-  <img src="docs/themes.svg" alt="Aurora, Lava Lamp and Ocean Tide in motion, then all thirteen themes" width="100%">
+  <img src="docs/themes.svg" alt="Aurora, Lava Lamp and Ocean Tide in motion, then the other ten themes" width="100%">
 </p>
 
 Each theme sets the app's colors for light and dark mode, its message bubbles, and a slow scene behind the chat that the panels frost over. The pane's header plays the same scene. Pick one in the gallery at the bottom of the pane, or step through them with the theme pill in the header. Motion stops when your system asks for reduced motion, and your pick carries over to new sessions.
@@ -66,7 +66,7 @@ While Claude is busy, a tapped prompt waits and sends when the turn ends.
 
 ## Play while Claude works
 
-One card, two games. **Tic-tac-toe** against Claude, which plays well but slips now and then, and a **4×4 sudoku** with a number pad and clashes in red. The round **⇄** button swaps them with a wave of light across the new board; every move glints, and Claude's reply lands a beat after yours.
+One card, two games. **Tic-tac-toe** against Claude, which looks ahead to the end of every game and never loses (a draw is a good result), and a **4×4 sudoku** with a number pad and clashes in red. The round **⇄** button swaps them with a wave of light across the new board; every move glints, and Claude's reply lands a beat after yours.
 
 ## Turning it off
 

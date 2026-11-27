@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { glassArt, heroArt, litArt, thumbArt } from './art'
 import { cardRows, dims } from './game'
-import { clashes, newGame, newSudoku, placeDigit, playTtt, selectCell } from './games'
+import { botMove, clashes, newGame, newSudoku, newTtt, placeDigit, playTtt, selectCell } from './games'
 import { LOOK_ORDER, themeOf } from './looks'
 import { parsePrompts, serializePrompts, STARTER, STARTER_INTRO } from './prompts'
 
@@ -88,6 +88,26 @@ test('tic-tac-toe answers each move; sudoku spots a clash', () => {
   if (rowGiven !== undefined) {
     expect(clashes(placeDigit(selectCell(puzzle, blank), rowGiven).cells).has(blank)).toBe(true)
   }
+})
+
+test("Claude's tic-tac-toe blocks, takes a win, and never loses", () => {
+  // X in both top corners, O in the centre: Claude must block the top middle.
+  expect(botMove(['X', '', 'X', '', 'O', '', '', '', ''])).toBe(1)
+  // O has the middle row nearly done: Claude takes it.
+  expect(botMove(['X', 'X', '', 'O', 'O', '', 'X', '', ''])).toBe(5)
+
+  let losses = 0
+
+  for (let k = 0; k < 400; k += 1) {
+    let game = newTtt(k % 2 === 0 ? undefined : newTtt())
+
+    while (game.winner === null) {
+      const open = game.board.flatMap((cell, i) => (cell === '' ? [i] : []))
+      game = playTtt(game, open[(k * 7 + open.length * 3) % open.length] ?? 0)
+    }
+    losses += game.winner === 'X' ? 1 : 0
+  }
+  expect(losses).toBe(0)
 })
 
 test('a click on a prompt tile sends it as the person; the dots edit it', async ($, on) => {
