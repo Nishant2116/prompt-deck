@@ -79,6 +79,84 @@ export const cardRows = (columns: number) => {
   return Math.ceil(Math.max(ttt, sudoku))
 }
 
+// Colours, mixed here so a square can fade from one to another. A Box paints
+// one flat colour, so a square's gradient is a stack of faint layers that all
+// start at the same edge and reach different distances: where more of them
+// overlap, the colour is stronger. No two layers butt against each other, so
+// no seam shows between them.
+type Rgba = [number, number, number, number]
+/**
+ * How a square is painted: a base colour; a glow strongest at the top that is
+ * gone by `reach`, a share of the height; a tint gathering toward the right
+ * edge; its rim and its ink.
+ */
+type Face = {
+  base: string
+  glow: string
+  glowAlpha: number
+  reach: number
+  side: string | null
+  sideAlpha: number
+  rim: string
+  ink: string
+}
+/** Layers in a glow: more where it is strong, so its steps stay too fine to see. */
+const glowLayers = (alpha: number) => (alpha > 0.5 ? 24 : 12)
+const SIDE_LAYERS = 8
+/** The opacity each of `n` stacked layers needs for all of them together to reach `total`. */
+const each = (total: number, n: number) => 1 - (1 - Math.min(0.98, Math.max(0, total))) ** (1 / n)
+/** A share as a whole percentage, the only kind a size takes. */
+const percent = (share: number) => `${Math.max(1, Math.min(100, Math.round(share * 100)))}%`
+
+const parse = (c: string): Rgba | null => {
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(c)
+
+  if (m === null) {
+    return null
+  }
+  const n = Number.parseInt(m[1] ?? '0', 16)
+
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255, m[2] === undefined ? 1 : Number.parseInt(m[2], 16) / 255]
+}
+const byte = (v: number) =>
+  Math.round(Math.max(0, Math.min(255, v)))
+    .toString(16)
+    .padStart(2, '0')
+const blend = (a: Rgba, b: Rgba, t: number): Rgba => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+  a[3] + (b[3] - a[3]) * t,
+]
+/** `c` moved toward `to` by `t`, at opacity `alpha`. */
+const shade = (c: string, to: string, t: number, alpha = 1): string => {
+  const a = parse(c)
+  const b = parse(to)
+
+  if (a === null || b === null) {
+    return c
+  }
+  const m = blend(a, b, t)
+
+  return `#${byte(m[0])}${byte(m[1])}${byte(m[2])}${byte(alpha * 255)}`
+}
+/** Ink that reads on a solid fill of `c`: white or near-black, whichever stands out more. */
+const inkOn = (c: string) => {
+  const rgb = parse(c)
+
+  if (rgb === null) {
+    return '#ffffff'
+  }
+  const [r, g, b] = rgb.slice(0, 3).map(v => {
+    const x = v / 255
+
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+  })
+  const lum = 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0)
+
+  return 1.05 / (lum + 0.05) >= (lum + 0.05) / 0.0555 ? '#ffffff' : '#140f0c'
+}
+
 /** The latest props of each drawn card, for its timer to read. */
 const latest = new WeakMap<object, Props>()
 
@@ -250,35 +328,112 @@ const Game: ClientModule<Props, State> = (p, s) => {
 
     return 0
   }
-  /** A square's frame and fill at a level of light, or as it rests. */
-  const glint = (level: -1 | 0 | 1 | 2, border: string, fill: string) =>
+  // The faces a square can wear. Glass: frosted, lighter at the top, with a
+  // cool tint creeping in from the right. Solid: a tone lit from the top
+  // left and deepening below. A glint lifts either toward white, then fades.
+  const W = '#ffffff'
+  const glass = (strength: number, rim: string): Face => ({
+    base: shade(p.accent, W, 0, Math.min(0.12, 0.05 * strength)),
+    glow: shade(p.accent, W, 0.45),
+    glowAlpha: Math.min(0.6, 0.2 * strength),
+    reach: 0.9,
+    side: shade(p.accent2, W, 0.1),
+    sideAlpha: Math.min(0.26, 0.11 * strength),
+    rim,
+    ink: p.accent,
+  })
+  const solid = (tone: string, lift = 0): Face => ({
+    base: shade(tone, '#000000', 0.14 * (1 - lift)),
+    glow: shade(tone, W, 0.5 + lift * 0.3),
+    glowAlpha: 0.75,
+    reach: 1,
+    side: null,
+    sideAlpha: 0,
+    rim: shade(tone, W, 0.4 + lift * 0.3),
+    ink: inkOn(tone),
+  })
+  const soft = (tone: string, strength: number): Face => ({
+    base: shade(tone, W, 0, Math.min(0.3, 0.1 * strength)),
+    glow: shade(tone, W, 0.35),
+    glowAlpha: Math.min(0.7, 0.3 * strength),
+    reach: 0.9,
+    side: null,
+    sideAlpha: 0,
+    rim: shade(tone, W, 0, 0.45),
+    ink: tone,
+  })
+  const hidden: Face = {
+    base: '#00000000',
+    glow: '#00000000',
+    glowAlpha: 0,
+    reach: 1,
+    side: null,
+    sideAlpha: 0,
+    rim: `${p.accent}18`,
+    ink: p.accent,
+  }
+  /** A face as the swap's wave or a fresh move lights it: -1 dark, 2 brightest. */
+  const glint = (level: -1 | 0 | 1 | 2, rest: Face, mark: string | null): Face =>
     level === -1
-      ? { borderColor: `${p.accent}18`, backgroundColor: '#00000000' }
-      : level === 2
-        ? { borderColor: p.accent, backgroundColor: `${p.accent}5c` }
-        : level === 1
-          ? { borderColor: `${p.accent}a0`, backgroundColor: `${p.accent}30` }
-          : { borderColor: border, backgroundColor: fill }
+      ? hidden
+      : level === 0
+        ? rest
+        : mark !== null
+          ? solid(mark, level === 2 ? 1 : 0.5)
+          : { ...soft(p.accent, level === 2 ? 2.2 : 1.4), rim: level === 2 ? p.accent : `${p.accent}a0` }
+
+  /** A rounded square painted with a face, and what sits on it centred above. */
+  const tile = (width: number, height: number, face: Face, top: JSX.Element | false) => {
+    const layers = glowLayers(face.glowAlpha)
+    const glow = shade(face.glow, W, 0, each(face.glowAlpha, layers))
+    const side = face.side === null ? null : shade(face.side, W, 0, each(face.sideAlpha, SIDE_LAYERS))
+
+    return (
+      <Box width={width} height={height} borderStyle="round" borderColor={face.rim} padding={0} overflow="hidden">
+        <Box position="absolute" top={0} left={0} width="100%" height="100%" backgroundColor={face.base} />
+        {face.glowAlpha > 0 &&
+          Array.from({ length: layers }, (_, k) => (
+            <Box
+              position="absolute"
+              top={0}
+              left={0}
+              width="100%"
+              height={percent((face.reach * (k + 1)) / layers)}
+              backgroundColor={glow}
+            />
+          ))}
+        {side !== null &&
+          Array.from({ length: SIDE_LAYERS }, (_, k) => (
+            <Box position="absolute" top={0} left={0} width="100%" height="100%" flexDirection="row" justifyContent="flex-end">
+              <Box width={percent((k + 1) / SIDE_LAYERS)} height="100%" backgroundColor={side} />
+            </Box>
+          ))}
+        <Box position="absolute" top={0} left={0} width="100%" height="100%" alignItems="center" justifyContent="center">
+          {top}
+        </Box>
+      </Box>
+    )
+  }
 
   const { x0 } = layout(st.shown, s.columns, s.rows)
   const D = dims(s.columns)
   const isOver = (id: string) => st.over === id
-  const pill = (id: string, label: string, width: number, isPrimary: boolean) => (
-    <Box
-      width={width}
-      height={1.5}
-      padding={0}
-      alignItems="center"
-      borderStyle="round"
-      borderColor={isPrimary || isOver(id) ? p.accent : `${p.accent}66`}
-      backgroundColor={isPrimary ? (isOver(id) ? `${p.accent}dd` : p.accent) : isOver(id) ? `${p.accent}33` : `${p.accent}17`}
-      justifyContent="center"
-    >
-      <Text size="footnote" weight="bold" color={isPrimary ? p.onAccent : p.accent}>
+  const pill = (id: string, label: string, width: number, isPrimary: boolean) => {
+    const face = isPrimary
+      ? solid(p.accent, isOver(id) ? 0.5 : 0)
+      : isOver(id)
+        ? { ...soft(p.accent, 1.6), rim: p.accent }
+        : { ...soft(p.accent, 0.9), rim: `${p.accent}66` }
+
+    return tile(
+      width,
+      1.5,
+      face,
+      <Text size="footnote" weight="bold" color={isPrimary ? face.ink : p.accent}>
         {label}
-      </Text>
-    </Box>
-  )
+      </Text>,
+    )
+  }
   const chip = (label: string, tone: string) => (
     <Text size="footnote" weight="bold" color={tone}>
       {label}
@@ -292,20 +447,14 @@ const Game: ClientModule<Props, State> = (p, s) => {
         </Text>
         {chips}
       </Box>
-      <Box
-        width={SWAP_W}
-        height={SWAP_H}
-        borderStyle="round"
-        padding={0}
-        borderColor={isOver('game:swap') ? p.onAccent : p.accent}
-        backgroundColor={isOver('game:swap') ? `${p.accent}dd` : p.accent}
-        alignItems="center"
-        justifyContent="center"
-      >
-        <Text weight="bold" color={p.onAccent}>
+      {tile(
+        SWAP_W,
+        SWAP_H,
+        solid(p.accent, isOver('game:swap') ? 0.6 : 0),
+        <Text weight="bold" color={inkOn(p.accent)}>
           ⇄
-        </Text>
-      </Box>
+        </Text>,
+      )}
     </Box>
   )
 
@@ -330,18 +479,29 @@ const Game: ClientModule<Props, State> = (p, s) => {
       const isOpen = mark === '' && t.winner === null
       const isHover = isOpen && isOver(`ttt:${i}`)
       const tone = mark === 'O' ? p.accent2 : p.accent
-      const look = isWin
-        ? { borderColor: tone, backgroundColor: tone }
-        : glint(level, isHover ? p.accent : `${p.accent}3a`, isHover ? `${p.accent}2e` : `${p.accent}14`)
+      // Once a game is won, the winning line keeps its light and the rest steps back.
+      const isBehind = t.winner !== null && t.winner !== 'draw' && !isWin && st.glow === 0 && st.wave === null
+      const rest =
+        mark === ''
+          ? isHover
+            ? glass(2, p.accent)
+            : glass(isBehind ? 0.6 : 1, `${p.accent}40`)
+          : isWin
+            ? { ...solid(tone, 0.35), rim: shade(tone, W, 0.75) }
+            : isBehind
+              ? { ...glass(0.8, `${tone}66`), ink: tone }
+              : solid(tone)
+      const face = glint(level, rest, mark === '' ? null : tone)
 
-      return (
-        <Box width={D.tc} height={D.tr} borderStyle="round" {...look} alignItems="center" justifyContent="center">
-          {level !== -1 && (mark !== '' || isHover) && (
-            <Text size="title" weight="bold" color={isWin ? p.onAccent : tone} {...(mark === '' ? { dimColor: true } : {})}>
-              {mark === '' ? 'X' : mark}
-            </Text>
-          )}
-        </Box>
+      return tile(
+        D.tc,
+        D.tr,
+        face,
+        level !== -1 && (mark !== '' || isHover) && (
+          <Text size="title" weight="bold" color={mark === '' ? p.accent : face.ink} {...(mark === '' ? { dimColor: true } : {})}>
+            {mark === '' ? 'X' : mark}
+          </Text>
+        ),
       )
     }
 
@@ -377,24 +537,34 @@ const Game: ClientModule<Props, State> = (p, s) => {
     const isPicked = g.selected === i
     const isHover = !isGiven && !g.isSolved && isOver(`sdk:${i}`)
     const level = lit(i, diagOf('sudoku', i))
-    const look = glint(
-      level,
-      isPicked || isHover ? p.accent : isGiven ? `${p.accent}55` : `${p.accent}30`,
-      isPicked ? p.accent : isHover ? `${p.accent}2e` : isGiven ? `${p.accent}26` : `${p.accent}0f`,
-    )
+    const rest = isPicked
+      ? { ...solid(p.accent), ...(bad.has(i) ? { rim: p.danger } : {}) }
+      : isHover
+        ? glass(2, p.accent)
+        : isGiven
+          ? glass(1.7, `${p.accent}70`)
+          : glass(g.isSolved ? 1.4 : 1, `${p.accent}40`)
+    const face = glint(level, rest, null)
 
-    return (
-      <Box width={D.sc} height={D.sr} borderStyle="round" {...look} alignItems="center" justifyContent="center">
-        {level !== -1 && n > 0 && (
-          <Text
-            size={D.sr >= 3 ? 'title' : 'heading'}
-            weight={isGiven ? 'bold' : 'semibold'}
-            {...(bad.has(i) ? { color: p.danger } : isPicked && level === 0 ? { color: p.onAccent } : isGiven ? {} : { color: p.accent })}
-          >
-            {String(n)}
-          </Text>
-        )}
-      </Box>
+    return tile(
+      D.sc,
+      D.sr,
+      face,
+      level !== -1 && n > 0 && (
+        <Text
+          size={D.sr >= 3 ? 'title' : 'heading'}
+          weight={isGiven ? 'bold' : 'semibold'}
+          {...(isPicked && level === 0
+            ? { color: face.ink }
+            : bad.has(i)
+              ? { color: p.danger }
+              : isGiven
+                ? {}
+                : { color: p.accent })}
+        >
+          {String(n)}
+        </Text>
+      ),
     )
   }
   const band = (r: number) => (
@@ -412,22 +582,17 @@ const Game: ClientModule<Props, State> = (p, s) => {
     const id = `num:${n}`
     const isHover = isOver(id) && g.selected !== null
     const level = lit(100 + n, LAST_DIAG.sudoku)
+    const face = glint(level, isHover ? solid(p.accent, 0.2) : glass(1.3, `${p.accent}5c`), null)
 
-    return (
-      <Box
-        width={D.kw}
-        height={D.sr}
-        borderStyle="round"
-        {...glint(level, isHover ? p.accent : `${p.accent}55`, isHover ? p.accent : `${p.accent}1f`)}
-        alignItems="center"
-        justifyContent="center"
-      >
-        {level !== -1 && (
-          <Text weight="bold" size={D.sr >= 3 ? 'heading' : 'body'} color={isHover && level === 0 ? p.onAccent : p.accent}>
-            {n === 0 ? '⌫' : String(n)}
-          </Text>
-        )}
-      </Box>
+    return tile(
+      D.kw,
+      D.sr,
+      face,
+      level !== -1 && (
+        <Text weight="bold" size={D.sr >= 3 ? 'heading' : 'body'} color={isHover && level === 0 ? face.ink : p.accent}>
+          {n === 0 ? '⌫' : String(n)}
+        </Text>
+      ),
     )
   }
   const status = g.isSolved ? `Solved in ${g.moves}` : g.selected === null ? 'Tap a square' : 'Pick a number'

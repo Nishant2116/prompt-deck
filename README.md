@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.7.1" src="docs/badge-version.svg" height="28">&nbsp;
+  <img alt="Version 0.7.2" src="docs/badge-version.svg" height="28">&nbsp;
   <a href="LICENSE"><img alt="MIT license" src="docs/badge-license.svg" height="28"></a>&nbsp;
   <img alt="A Claude Code plugin" src="docs/badge-plugin.svg" height="28">
 </p>

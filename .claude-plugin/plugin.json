@@ -1,6 +1,6 @@
 {
   "name": "prompt-deck",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "A bento widget beside the chat: saved prompts you tap to send, a flip card with tic-tac-toe and mini sudoku, and thirteen moving themes for the Claude app.",
   "types": "./types/index.d.ts",
   "license": "MIT",
